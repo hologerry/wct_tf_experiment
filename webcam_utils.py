@@ -3,8 +3,8 @@ import datetime
 from threading import Thread
 
 
-### Video/Webcam helpers
-### Borrowed from https://github.com/jrosebr1/imutils/
+# Video/Webcam helpers
+# Borrowed from https://github.com/jrosebr1/imutils/
 
 class WebcamVideoStream:
     '''From http://www.pyimagesearch.com/2015/12/21/increasing-webcam-fps-with-python-and-opencv/'''
@@ -13,7 +13,7 @@ class WebcamVideoStream:
         # from the stream
         self.stream = cv2.VideoCapture(src)
 
-        if width is not None and height is not None: # Both are needed to change default dims
+        if width is not None and height is not None:  # Both are needed to change default dims
             self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
@@ -27,24 +27,25 @@ class WebcamVideoStream:
         # start the thread to read frames from the video stream
         Thread(target=self.update, args=()).start()
         return self
- 
+
     def update(self):
         # keep looping infinitely until the thread is stopped
         while True:
             # if the thread indicator variable is set, stop the thread
             if self.stopped:
                 return
- 
+
             # otherwise, read the next frame from the stream
             (self.ret, self.frame) = self.stream.read()
- 
+
     def read(self):
         # return the frame most recently read
         return (self.ret, self.frame)
- 
+
     def stop(self):
         # indicate that the thread should be stopped
         self.stopped = True
+
 
 class FPS:
         def __init__(self):

@@ -2,18 +2,27 @@
 Copyright (c) 2016, Brendan Shillingford
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+    disclaimer.
 
-2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following
+    disclaimer in the documentation and/or other materials provided with the distribution.
 
-3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
+    products derived from this software without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+    INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+    ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+    INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+    SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""
+
 Modified version of torchfile that is py3 and Windows compatible
 Fixes provided by @xdaimon https://github.com/bshillingford/python-torchfile/pull/13
 ----------------------------------------------------------------------
@@ -48,10 +57,9 @@ format, but minor refactoring can give support for the ascii format as well.
 """
 import struct
 from array import array
-import numpy as np
-import sys
 from collections import namedtuple
 
+import numpy as np
 
 TYPE_NIL = 0
 TYPE_NUMBER = 1
@@ -66,15 +74,20 @@ LEGACY_TYPE_RECUR_FUNCTION = 7
 LuaFunction = namedtuple('LuaFunction',
                          ['size', 'dumped', 'upvalues'])
 
+
 class mycontainer():
     def __init__(self, val):
         self.val = val
+
     def __hash__(self):
         return id(self.val)
+
     def __eq__(self, other):
         return id(self.val) == id(other.val)
+
     def __ne__(self, other):
         return id(self.val) != id(other.val)
+
 
 class hashable_uniq_dict(dict):
     """
@@ -91,7 +104,7 @@ class hashable_uniq_dict(dict):
         return iter(self.keys())
 
     def __getitem__(self, k):
-        for _k,v in self.items():
+        for _k, v in self.items():
             if str(_k) == str(k):
                 return v
 
@@ -99,7 +112,7 @@ class hashable_uniq_dict(dict):
         dict.__setitem__(self, mycontainer(k), v)
 
     def items(self):
-        return [(k.val, v) for k,v in dict.items(self)]
+        return [(k.val, v) for k, v in dict.items(self)]
 
     def keys(self):
         return [k.val for k in dict.keys(self)]
@@ -117,6 +130,7 @@ class hashable_uniq_dict(dict):
         raise TypeError(
             'hashable_uniq_dict does not support these comparisons')
     __cmp__ = __ne__ = __le__ = __gt__ = __lt__ = _disabled_binop
+
 
 class TorchObject(object):
     """
@@ -138,7 +152,7 @@ class TorchObject(object):
             return self._obj[k]
         if isinstance(k, (str, bytes)):
             return self._obj[k.encode('utf8')]
-    
+
     def __getitem__(self, k):
         if k in self._obj.keys():
             return self._obj[k]
@@ -193,6 +207,8 @@ def add_tensor_reader(typename, dtype):
             shape=size,
             strides=stride)
     type_handlers[typename] = read_tensor_generic
+
+
 add_tensor_reader(b'torch.ByteTensor', dtype=np.uint8)
 add_tensor_reader(b'torch.CharTensor', dtype=np.int8)
 add_tensor_reader(b'torch.ShortTensor', dtype=np.int16)
@@ -214,6 +230,8 @@ def add_storage_reader(typename, dtype):
         size = reader.read_long()
         return np.fromfile(reader.f, dtype=dtype, count=size)
     type_handlers[typename] = read_storage
+
+
 add_storage_reader(b'torch.ByteStorage', dtype=np.uint8)
 add_storage_reader(b'torch.CharStorage', dtype=np.int8)
 add_storage_reader(b'torch.ShortStorage', dtype=np.int16)
@@ -233,6 +251,8 @@ def add_notimpl_reader(typename):
     def read_notimpl(reader, version):
         raise NotImplementedError('Reader not implemented for: ' + typename)
     type_handlers[typename] = read_notimpl
+
+
 add_notimpl_reader(b'torch.HalfTensor')
 add_notimpl_reader(b'torch.HalfStorage')
 add_notimpl_reader(b'torch.CudaHalfTensor')
@@ -243,7 +263,7 @@ add_notimpl_reader(b'torch.CudaHalfStorage')
 def tds_Vec_reader(reader, version):
     size = reader.read_int()
     obj = []
-    _ = reader.read_obj()
+    reader.read_obj()
     for i in range(size):
         e = reader.read_obj()
         obj.append(e)
@@ -254,7 +274,7 @@ def tds_Vec_reader(reader, version):
 def tds_Hash_reader(reader, version):
     size = reader.read_int()
     obj = hashable_uniq_dict()
-    _ = reader.read_obj()
+    reader.read_obj()
     for i in range(size):
         k = reader.read_obj()
         v = reader.read_obj()

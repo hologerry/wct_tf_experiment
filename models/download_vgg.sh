@@ -7,4 +7,4 @@
 # "wget -c --no-check-certificate https://bethgelab.org/media/uploads/deeptextures/vgg_normalised.caffemodel"
 cd models
 wget -c -O vgg_normalised.t7 "https://www.dropbox.com/s/kh8izr3fkvhitfn/vgg_normalised.t7?dl=1"
-cd .. 
+cd ..

@@ -1,12 +1,14 @@
 from __future__ import print_function, division
 
-import scipy.misc, numpy as np, os, sys
+import scipy.misc
+import numpy as np
+import os
 import random
-from coral import coral_numpy # , coral_pytorch
+from coral import coral_numpy  # , coral_pytorch
 # from color_transfer import color_transfer
 
 
-### Image helpers
+# Image helpers
 
 def get_files(img_dir):
     files = os.listdir(img_dir)
@@ -16,15 +18,18 @@ def get_files(img_dir):
     # return [os.path.join(img_dir,x) for x in files]
     return paths
 
+
 def save_img(out_path, img):
     img = np.clip(img, 0, 255).astype(np.uint8)
     scipy.misc.imsave(out_path, img)
 
+
 def get_img(src):
-   img = scipy.misc.imread(src, mode='RGB')
-   if not (len(img.shape) == 3 and img.shape[2] == 3):
-       img = np.dstack((img,img,img))
-   return img
+    img = scipy.misc.imread(src, mode='RGB')
+    if not (len(img.shape) == 3 and img.shape[2] == 3):
+        img = np.dstack((img, img, img))
+    return img
+
 
 def center_crop(img, size=256):
     height, width = img.shape[0], img.shape[1]
@@ -35,7 +40,8 @@ def center_crop(img, size=256):
 
     h_off = (height - size) // 2
     w_off = (width - size) // 2
-    return img[h_off:h_off+size,w_off:w_off+size]
+    return img[h_off:h_off+size, w_off:w_off+size]
+
 
 def center_crop_to(img, H_target, W_target):
     '''Center crop a rectangle of given dimensions and resize if necessary'''
@@ -50,7 +56,8 @@ def center_crop_to(img, H_target, W_target):
 
     h_off = (height - H_target) // 2
     w_off = (width - W_target) // 2
-    return img[h_off:h_off+H_target,w_off:w_off+W_target]
+    return img[h_off:h_off+H_target, w_off:w_off+W_target]
+
 
 def resize_to(img, resize=512):
     '''Resize short side to target size and preserve aspect ratio'''
@@ -63,8 +70,9 @@ def resize_to(img, resize=512):
         ratio = width / resize
         long_side = round(height / ratio)
         resize_shape = (long_side, resize, 3)
-    
+
     return scipy.misc.imresize(img, resize_shape, interp='bilinear')
+
 
 def get_img_crop(src, resize=512, crop=256):
     '''Get & resize image and center crop'''
@@ -72,17 +80,19 @@ def get_img_crop(src, resize=512, crop=256):
     img = resize_to(img, resize)
     return center_crop(img, crop)
 
+
 def get_img_random_crop(src, resize=512, crop=256):
     '''Get & resize image and random crop'''
     img = get_img(src)
     img = resize_to(img, resize=resize)
-    
+
     offset_h = random.randint(0, (img.shape[0]-crop))
     offset_w = random.randint(0, (img.shape[1]-crop))
-    
+
     img = img[offset_h:offset_h+crop, offset_w:offset_w+crop, :]
 
     return img
+
 
 def preserve_colors_np(style_rgb, content_rgb):
     coraled = coral_numpy(style_rgb/255., content_rgb/255.)
@@ -112,14 +122,16 @@ def preserve_colors_np(style_rgb, content_rgb):
 #     transferred = color_transfer(content_bgr, style_bgr)
 #     return cv2.cvtColor(transferred, cv2.COLOR_BGR2RGB)
 
+
 def swap_filter_fit(H, W, patch_size, stride, n_pools=4):
     '''Style swap may not output same size encoding if filter size > 1, calculate a new size to avoid this'''
     # Calculate size of encodings after max pooling n_pools times
-    pool_out_size = lambda x: (x + 2 - 1) // 2    
+    def pool_out_size(x): return (x + 2 - 1) // 2
     H_pool_out, W_pool_out = H, W
     for _ in range(n_pools):
-        H_pool_out, W_pool_out = pool_out_size(H_pool_out), pool_out_size(W_pool_out)
-    
+        H_pool_out, W_pool_out = pool_out_size(
+            H_pool_out), pool_out_size(W_pool_out)
+
     # Size of encoding after applying conv to determine nearest neighbor patches
     H_conv_out = (H_pool_out - patch_size) // stride + 1
     W_conv_out = (W_pool_out - patch_size) // stride + 1

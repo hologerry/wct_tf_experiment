@@ -2,4 +2,4 @@
 cd models
 wget -c -O models.zip "https://www.dropbox.com/s/ssg39coiih5hjzz/models.zip?dl=1"
 unzip models.zip
-cd .. 
+cd ..

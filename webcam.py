@@ -1,36 +1,38 @@
-from __future__ import print_function, division
+from __future__ import division, print_function
 
-import os
 import argparse
-import cv2
+import os
 import time
-import numpy as np
-import tensorflow as tf
-from utils import preserve_colors_np
-from utils import get_files, get_img, get_img_crop, resize_to, center_crop, save_img
-from webcam_utils import WebcamVideoStream, FPS
-from wct import WCT
 
+import numpy as np
+
+import cv2
+from utils import (get_files, get_img, get_img_crop,
+                   preserve_colors_np, resize_to, save_img)
+from wct import WCT
+from webcam_utils import FPS, WebcamVideoStream
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-src', '--source', dest='video_source', type=int,
                     default=0, help='Device index of the camera.')
 parser.add_argument('--checkpoints', nargs='+', type=str, help='List of checkpoint directories', required=True)
-parser.add_argument('--relu-targets', nargs='+', type=str, help='List of reluX_1 layers, corresponding to --checkpoints', required=True)
+parser.add_argument('--relu-targets', nargs='+', type=str,
+                    help='List of reluX_1 layers, corresponding to --checkpoints', required=True)
 parser.add_argument('--style-path', type=str, dest='style_path', help='Style images folder', required=True)
 parser.add_argument('--vgg-path', type=str,
-                    dest='vgg_path', help='Path to vgg_normalised.t7', 
+                    dest='vgg_path', help='Path to vgg_normalised.t7',
                     default='models/vgg_normalised.t7')
 parser.add_argument('--width', type=int, help='Webcam video width', default=None)
 parser.add_argument('--height', type=int, help='Webcam video height', default=None)
 parser.add_argument('--video-out', type=str, help="Save to output video file if not None", default=None)
 parser.add_argument('--fps', type=int, help="Frames Per Second for output video file", default=10)
 parser.add_argument('--scale', type=float, help="Scale the output image", default=1)
-parser.add_argument('--keep-colors', action='store_true', help="Preserve the colors of the content image", default=False)
+parser.add_argument('--keep-colors', action='store_true',
+                    help="Preserve the colors of the content image", default=False)
 parser.add_argument('--passes', type=int, help="# of stylization passes per content image", default=1)
 parser.add_argument('--device', type=str,
-                        dest='device', help='Device to perform compute on',
-                        default='/gpu:0')
+                    dest='device', help='Device to perform compute on',
+                    default='/gpu:0')
 parser.add_argument('--style-size', type=int, help="Resize style image to this size before cropping", default=512)
 parser.add_argument('--crop-size', type=int, help="Crop a square from the style image", default=0)
 parser.add_argument('--alpha', type=float, help="Alpha blend value for WCT features", default=1)
@@ -39,7 +41,7 @@ parser.add_argument('--noise', action='store_true', help="Synthesize textures fr
 parser.add_argument('-r', '--random', type=int, help='Load a random img every # iterations', default=0)
 parser.add_argument('--adain', action='store_true', help="Use AdaIN instead of WCT", default=False)
 
-## Style swap args
+# Style swap args
 parser.add_argument('--swap5', action='store_true', help="Swap style on layer relu5_1", default=False)
 parser.add_argument('--ss-alpha', type=float, help="Style swap alpha blend", default=0.6)
 parser.add_argument('--ss-patch-size', type=int, help="Style swap patch size", default=3)
@@ -69,25 +71,25 @@ class StyleWindow(object):
         cv2.namedWindow('Style Controls')
         if len(self.style_imgs) > 1:
             # Select style image by index
-            cv2.createTrackbar('Index','Style Controls', 0, len(self.style_imgs)-1, self.set_idx)
-        
+            cv2.createTrackbar('Index', 'Style Controls', 0, len(self.style_imgs)-1, self.set_idx)
+
         # Blend param for WCT/AdaIN transform
-        cv2.createTrackbar('WCT/AdaIN alpha','Style Controls', int(self.alpha*100), 100, self.set_alpha)
+        cv2.createTrackbar('WCT/AdaIN alpha', 'Style Controls', int(self.alpha*100), 100, self.set_alpha)
 
         # Separate blend setting for style-swap
-        cv2.createTrackbar('Style-swap alpha','Style Controls', int(self.ss_alpha*100), 100, self.set_ss_alpha)
+        cv2.createTrackbar('Style-swap alpha', 'Style Controls', int(self.ss_alpha*100), 100, self.set_ss_alpha)
 
         # Resize style to this size before cropping
-        cv2.createTrackbar('Style size','Style Controls', self.img_size, 1280, self.set_size)
+        cv2.createTrackbar('Style size', 'Style Controls', self.img_size, 1280, self.set_size)
 
         # Size of square crop box for style
-        cv2.createTrackbar('Style crop','Style Controls', self.crop_size, 1280, self.set_crop_size)
+        cv2.createTrackbar('Style crop', 'Style Controls', self.crop_size, 1280, self.set_crop_size)
 
         # Scale the content before processing
-        cv2.createTrackbar('Content scale','Style Controls', int(self.scale*100), 200, self.set_scale)
+        cv2.createTrackbar('Content scale', 'Style Controls', int(self.scale*100), 200, self.set_scale)
 
         # Num times to repeat the stylization pipeline
-        cv2.createTrackbar('# of passes','Style Controls', self.passes, 5, self.set_passes)
+        cv2.createTrackbar('# of passes', 'Style Controls', self.passes, 5, self.set_passes)
 
         self.set_style(random=True, window='Style Controls')
 
@@ -98,7 +100,7 @@ class StyleWindow(object):
             self.idx = np.random.randint(len(self.style_imgs))
 
         style_file = self.style_imgs[self.idx]
-        print('Loading style image',style_file)
+        print('Loading style image', style_file)
         if self.crop_size > 0:
             self.style_rgb = get_img_crop(style_file, resize=self.img_size, crop=self.crop_size)
         else:
@@ -113,12 +115,12 @@ class StyleWindow(object):
         self.set_style()
 
     def set_crop_size(self, crop_size):
-        self.crop_size = min(crop_size, self.img_size) # Don't go above img_size
+        self.crop_size = min(crop_size, self.img_size)  # Don't go above img_size
         self.set_style()
 
     def set_scale(self, scale):
         self.scale = scale / 100
-        
+
     def set_alpha(self, alpha):
         self.alpha = alpha / 100
 
@@ -137,20 +139,20 @@ class StyleWindow(object):
 
 def main():
     # Load the WCT model
-    wct_model = WCT(checkpoints=args.checkpoints, 
+    wct_model = WCT(checkpoints=args.checkpoints,
                     relu_targets=args.relu_targets,
-                    vgg_path=args.vgg_path, 
+                    vgg_path=args.vgg_path,
                     device=args.device,
-                    ss_patch_size=args.ss_patch_size, 
+                    ss_patch_size=args.ss_patch_size,
                     ss_stride=args.ss_stride)
 
     # Load a panel to control style settings
-    style_window = StyleWindow(args.style_path, 
-                               args.style_size, 
-                               args.crop_size, 
-                               args.scale, 
-                               args.alpha, 
-                               args.swap5, 
+    style_window = StyleWindow(args.style_path,
+                               args.style_size,
+                               args.crop_size,
+                               args.scale,
+                               args.alpha,
+                               args.swap5,
                                args.ss_alpha,
                                args.passes)
 
@@ -167,13 +169,13 @@ def main():
     if args.video_out is not None:
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         if args.concat:
-            out_shape = (img_shape[1]+img_shape[0],img_shape[0]) # Make room for the style img
+            out_shape = (img_shape[1]+img_shape[0], img_shape[0])  # Make room for the style img
         else:
-            out_shape = (img_shape[1],img_shape[0])
+            out_shape = (img_shape[1], img_shape[0])
         print('Video Out Shape:', out_shape)
         video_writer = cv2.VideoWriter(args.video_out, fourcc, args.fps, out_shape)
-    
-    fps = FPS().start() # Track FPS processing speed
+
+    fps = FPS().start()  # Track FPS processing speed
 
     # Toggles changed with kb shortcuts
     keep_colors = args.keep_colors
@@ -185,14 +187,14 @@ def main():
     while(True):
         ret, frame = cap.read()
 
-        if ret is True:       
+        if ret is True:
             frame_resize = cv2.resize(frame, None, fx=style_window.scale, fy=style_window.scale)
 
             if args.noise:  # Generate textures from noise instead of images
                 frame_resize = np.random.randint(0, 256, frame_resize.shape, np.uint8)
 
             count += 1
-            print("Frame:",count,"Orig shape:",frame.shape,"New shape",frame_resize.shape)
+            print("Frame:", count, "Orig shape:", frame.shape, "New shape", frame_resize.shape)
 
             content_rgb = cv2.cvtColor(frame_resize, cv2.COLOR_BGR2RGB)  # OpenCV uses BGR, we need RGB
 
@@ -205,46 +207,48 @@ def main():
                 style_rgb = style_window.style_rgb
 
             # Run the frame through the style network
-            stylized_rgb = wct_model.predict(content_rgb, style_rgb, style_window.alpha, swap_style, style_window.ss_alpha, use_adain)
+            stylized_rgb = wct_model.predict(content_rgb, style_rgb, style_window.alpha,
+                                             swap_style, style_window.ss_alpha, use_adain)
 
             # Repeat stylization pipeline
             if style_window.passes > 1:
                 for i in range(style_window.passes-1):
-                    stylized_rgb = wct_model.predict(stylized_rgb, style_rgb, style_window.alpha, swap_style, style_window.ss_alpha, use_adain)
+                    stylized_rgb = wct_model.predict(stylized_rgb, style_rgb, style_window.alpha, swap_style,
+                                                     style_window.ss_alpha, use_adain)
 
             # Stitch the style + stylized output together
             if args.concat:
                 # Resize style img to same height as frame
                 style_rgb_resized = cv2.resize(style_rgb, (stylized_rgb.shape[0], stylized_rgb.shape[0]))
                 stylized_rgb = np.hstack([style_rgb_resized, stylized_rgb])
-            
+
             stylized_bgr = cv2.cvtColor(stylized_rgb, cv2.COLOR_RGB2BGR)
-                
+
             if args.video_out is not None:
-                stylized_bgr = cv2.resize(stylized_bgr, out_shape) # Make sure frame matches video size
+                stylized_bgr = cv2.resize(stylized_bgr, out_shape)  # Make sure frame matches video size
                 video_writer.write(stylized_bgr)
 
             cv2.imshow('WCT Universal Style Transfer', stylized_bgr)
 
             fps.update()
 
-            key = cv2.waitKey(10) 
+            key = cv2.waitKey(10)
             if key & 0xFF == ord('r'):   # Load new random style
                 style_window.set_style(random=True)
-            elif key & 0xFF == ord('c'): # Toggle color preservation
+            elif key & 0xFF == ord('c'):  # Toggle color preservation
                 keep_colors = not keep_colors
-                print('Switching to keep_colors:',keep_colors)
-            elif key & 0xFF == ord('s'): # Toggle style swap
+                print('Switching to keep_colors:', keep_colors)
+            elif key & 0xFF == ord('s'):  # Toggle style swap
                 swap_style = not swap_style
-                print('New value for flag swap_style:',swap_style)
-            elif key & 0xFF == ord('a'): # Toggle AdaIN
+                print('New value for flag swap_style:', swap_style)
+            elif key & 0xFF == ord('a'):  # Toggle AdaIN
                 use_adain = not use_adain
-                print('New value for flag use_adain:',use_adain)
-            elif key & 0xFF == ord('w'): # Write stylized frame
+                print('New value for flag use_adain:', use_adain)
+            elif key & 0xFF == ord('w'):  # Write stylized frame
                 out_f = "{}.png".format(time.time())
-                save_img(out_f, stylized_rgb)
-                print('Saved image to:',out_f)
-            elif key & 0xFF == ord('q'): # Quit gracefully
+                save_img(out_f,  stylized_rgb)
+                print('Saved image to:', out_f)
+            elif key & 0xFF == ord('q'):  # Quit gracefully
                 break
         else:
             break
@@ -254,10 +258,10 @@ def main():
     print('[INFO] approx. FPS: {:.2f}'.format(fps.fps()))
 
     cap.stop()
-    
+
     if args.video_out is not None:
         video_writer.release()
-    
+
     cv2.destroyAllWindows()
 
 
