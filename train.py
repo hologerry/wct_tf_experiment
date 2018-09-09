@@ -140,7 +140,8 @@ def train():
             enqueue_thread.isDaemon()
             enqueue_thread.start()
             coord = tf.train.Coordinator()
-            threads = tf.train.start_queue_runners(coord=coord, sess=sess)
+            # threads = tf.train.start_queue_runners(coord=coord, sess=sess)
+            tf.train.start_queue_runners(coord=coord, sess=sess)
 
             log_path = args.log_path if args.log_path is not None else os.path.join(
                 args.checkpoint, 'log')
