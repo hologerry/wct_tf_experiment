@@ -48,12 +48,10 @@ class WCTModel(object):
 
         # Style swap settings
         self.swap5 = tf.placeholder_with_default(tf.constant(False), shape=[])
-        self.ss_alpha = tf.placeholder_with_default(.7, shape=[
-        ], name='ss_alpha')
+        self.ss_alpha = tf.placeholder_with_default(.7, shape=[], name='ss_alpha')
 
         # Flag to use AdaIN instead of WCT
-        self.use_adain = tf.placeholder_with_default(
-            tf.constant(False), shape=[])
+        self.use_adain = tf.placeholder_with_default(tf.constant(False), shape=[])
 
         self.encoder_decoders = []
 

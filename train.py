@@ -118,7 +118,7 @@ def train():
                 val_batch = next(val_images)
 
                 sess.run(enqueue_op, feed_dict={queue_input_content: content_batch,
-                                                queue_input_val:     val_batch})
+                                                queue_input_val: val_batch})
 
         # Build the model graph & train/summary ops, and get the EncoderDecoder
         model = WCTModel(mode='train',
